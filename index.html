@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pemodelan Pasut</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Web Pemodelan Pasut</p>
+        <h1>Pemodelan Harmonik Pasang Surut</h1>
+        <p class="subtitle">
+          Upload data CSV/XLSX atau ambil data dari IOC, pilih sensor, atur rentang waktu, pilih resolusi 1 menit / 15 menit / 30 menit / 1 jam,
+          lalu hasil observasi, model, residual, dan report TXT akan dibuat langsung di browser.
+        </p>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel controls-panel">
+        <h2>1) Sumber data</h2>
+
+        <div class="source-switch">
+          <label class="source-option active" id="sourceFileLabel">
+            <input type="radio" name="sourceType" id="sourceFile" value="file" checked />
+            <span>Upload file lokal</span>
+          </label>
+          <label class="source-option" id="sourceIocLabel">
+            <input type="radio" name="sourceType" id="sourceIoc" value="ioc" />
+            <span>Ambil dari IOC</span>
+          </label>
+        </div>
+
+        <div id="localSourcePanel" class="source-panel">
+          <div class="field-group">
+            <label for="fileInput">File data</label>
+            <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" />
+            <p class="hint">
+              Format yang didukung: baris 1 = nama stasiun, baris 2 = nama kolom, baris 3 dst = data.
+            </p>
+          </div>
+        </div>
+
+        <div id="iocSourcePanel" class="source-panel hidden">
+          <div class="grid two-col">
+            <div class="field-group">
+              <label for="iocStationCode">Kode stasiun IOC</label>
+              <input id="iocStationCode" type="text" placeholder="contoh: saba" />
+            </div>
+
+            <div class="field-group">
+              <label for="iocPeriod">Periode</label>
+              <select id="iocPeriod">
+                <option value="0.5">12 jam</option>
+                <option value="1">1 hari</option>
+                <option value="7">7 hari</option>
+                <option value="30" selected>30 hari</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="iocEndDate">Tanggal akhir (UTC)</label>
+              <input id="iocEndDate" type="date" />
+            </div>
+
+            <div class="field-group">
+              <label for="iocUrl">URL IOC</label>
+              <input id="iocUrl" type="text" placeholder="https://www.ioc-sealevelmonitoring.org/bgraph.php?..." />
+            </div>
+          </div>
+
+          <div class="button-row compact-row">
+            <button id="buildIocUrlBtn" type="button" class="ghost">Buat URL IOC</button>
+            <button id="fetchIocBtn" type="button" class="primary">Ambil Data IOC</button>
+          </div>
+
+          <p class="hint">
+            Isi kode stasiun, periode, dan tanggal akhir untuk membentuk URL otomatis, atau paste langsung URL IOC.
+            Bila request langsung dari browser diblokir server IOC, website akan menampilkan pesan error dan mode upload file tetap bisa dipakai.
+          </p>
+        </div>
+
+        <div id="fileStatus" class="status-box muted">
+          Belum ada data yang dipilih.
+        </div>
+
+        <h2>2) Pengaturan analisis</h2>
+        <div class="grid two-col">
+          <div class="field-group">
+            <label for="stationName">Nama stasiun</label>
+            <input id="stationName" type="text" readonly placeholder="Akan terbaca otomatis" />
+          </div>
+
+          <div class="field-group">
+            <label for="sensorSelect">Sensor</label>
+            <select id="sensorSelect" disabled>
+              <option value="">Pilih sensor</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="startDate">Start date (UTC, 24 jam)</label>
+            <input id="startDate" type="text" inputmode="numeric" placeholder="YYYY-MM-DD HH:mm" disabled />
+          </div>
+
+          <div class="field-group">
+            <label for="endDate">End date (UTC, 24 jam)</label>
+            <input id="endDate" type="text" inputmode="numeric" placeholder="YYYY-MM-DD HH:mm" disabled />
+          </div>
+
+          <div class="field-group">
+            <label for="resolutionSelect">Resolusi analisis</label>
+            <select id="resolutionSelect" disabled>
+              <option value="1">1 menit</option>
+              <option value="15">15 menit</option>
+              <option value="30">30 menit</option>
+              <option value="60">1 jam</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="maxGap">Maks. gap interpolasi (menit)</label>
+            <input id="maxGap" type="number" min="0" step="1" value="15" disabled />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Komponen harmonik</label>
+          <div id="constituentList" class="checkbox-grid"></div>
+          <p class="hint">Default mengikuti script MATLAB: M2, S2, K1, O1, N2, K2, P1, Q1.</p>
+        </div>
+
+        <div class="button-row">
+          <button id="processBtn" class="primary" disabled>Proses Data</button>
+          <button id="resetBtn" class="ghost" type="button">Reset</button>
+        </div>
+      </section>
+
+      <section class="panel info-panel">
+        <h2>3) Ringkasan data</h2>
+        <div id="summaryCards" class="summary-cards">
+          <div class="summary-card">
+            <span>Jumlah data</span>
+            <strong id="summaryRows">-</strong>
+          </div>
+          <div class="summary-card">
+            <span>Interval dominan</span>
+            <strong id="summaryInterval">-</strong>
+          </div>
+          <div class="summary-card">
+            <span>Periode data</span>
+            <strong id="summaryPeriod">-</strong>
+          </div>
+          <div class="summary-card">
+            <span>Sensor tersedia</span>
+            <strong id="summarySensors">-</strong>
+          </div>
+        </div>
+
+        <div id="analysisSummary" class="analysis-summary muted">
+          Muat data dulu untuk melihat hasil ringkas fitting harmonik.
+        </div>
+
+        <div class="button-row report-row">
+          <button id="downloadReportBtn" disabled>Download report.txt</button>
+          <button id="downloadDataBtn" disabled>Download observasi_vs_model.txt</button>
+        </div>
+      </section>
+    </main>
+
+    <section class="panel plot-panel">
+      <h2>4) Plot hasil</h2>
+      <div class="plot-grid">
+        <div class="plot-card">
+          <h3>Observasi</h3>
+          <div id="plotObs" class="plot"></div>
+        </div>
+        <div class="plot-card">
+          <h3>Model</h3>
+          <div id="plotModel" class="plot"></div>
+        </div>
+        <div class="plot-card wide">
+          <h3>Observasi vs Model</h3>
+          <div id="plotCompare" class="plot"></div>
+        </div>
+        <div class="plot-card">
+          <h3>Amplitudo komponen</h3>
+          <div id="plotAmp" class="plot"></div>
+        </div>
+        <div class="plot-card">
+          <h3>Residual</h3>
+          <div id="plotResidual" class="plot"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>
+        Dibuat untuk GitHub Pages. Mode upload file selalu aman. Mode IOC online tergantung apakah server sumber mengizinkan request langsung dari browser.
+      </p>
+    </footer>
+  </div>
+
+  <script src="assets/js/parser.js"></script>
+  <script src="assets/js/tide.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
