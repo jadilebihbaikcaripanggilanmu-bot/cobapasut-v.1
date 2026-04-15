@@ -199,6 +199,32 @@
       </div>
     </section>
 
+    <section class="card">
+  <h2>5) Animasi Gelombang</h2>
+
+  <div class="anim-controls">
+    <label>Sumber animasi</label>
+    <select id="animSource">
+      <option value="obs">Observasi</option>
+      <option value="model">Model</option>
+    </select>
+
+    <button id="btnAnimPlay">Play</button>
+    <button id="btnAnimPause">Pause</button>
+    <button id="btnAnimReset">Reset</button>
+
+    <label>Kecepatan</label>
+    <input type="range" id="animSpeed" min="1" max="20" value="5" />
+  </div>
+
+  <div class="anim-meta">
+    <span id="animTimeLabel">Waktu: -</span>
+    <span id="animValueLabel">Elevasi: -</span>
+  </div>
+
+  <canvas id="waveCanvas" width="900" height="320"></canvas>
+</section>
+
     <footer class="footer">
       <p>
         Dibuat untuk GitHub Pages. Mode upload file selalu aman. Mode IOC online tergantung apakah server sumber mengizinkan request langsung dari browser.
@@ -209,5 +235,6 @@
   <script src="assets/js/parser.js"></script>
   <script src="assets/js/tide.js"></script>
   <script src="assets/js/app.js"></script>
+  <script src="assets/js/wave-animation.js"></script>
 </body>
 </html>
